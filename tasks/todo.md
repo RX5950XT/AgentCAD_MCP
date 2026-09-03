@@ -226,3 +226,43 @@ mass_properties("Bracket", 1.24) → center_of_mass [30.7418,20.0,5.0], mass_g 2
 熱抽換驗證（沒有重開 FreeCAD）：
 RELOADED ／ 面板按鈕：['整體','複製','清除']
 ```
+
+## 第六輪：拆成獨立 addon（2026-09-03）
+
+### 做了什麼
+
+AgentCAD 原本住在一個 FreeCAD fork 的 `src/Mod/Agent/`，靠 6 行 CMake 掛進編譯。
+盤點後發現那 6 行只是把 `.py` 複製到安裝目錄，沒有任何 C++ 依賴 ——
+114 KB 的東西被綁在 2.6 GB 的 repo 裡，別人要用得先抓整個 fork。
+
+- 拆成獨立 repo `D:/Workspace/Personal_Project/AgentCAD`（18 個檔案，`.git` 153 KB）
+- 結構重整：`src/Mod/Agent/agentcad/` → `agentcad/`，
+  `tools/agentcad-mcp/server.py` → `mcp/server.py`，`tools/agentcad_smoke.py` → `smoke.py`
+- 新寫 `README.md`（安裝、接 AI、量測操作表）與 `CLAUDE.md` / `AGENTS.md`（開發規範）
+- fork 側：撤掉 6 行 CMake、刪除 AgentCAD 全部檔案、改寫 `README.md` /
+  `CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` 指向新 repo
+- MCP 重新註冊指向 `AgentCAD/mcp/server.py`（舊路徑的檔案已刪，原註冊是壞的）
+- 順手清掉兩份漏網的舊 `FreeCADMCP` addon：`%APPDATA%/FreeCAD/Mod/`（**啟用中**，
+  會搶 port 9875）與 `%APPDATA%/FreeCAD/v1-1/Mod/`
+
+### 踩到的坑
+
+junction 第一次建在 `%APPDATA%/FreeCAD/Mod/Agent`，FreeCAD 完全沒反應也沒報錯 ——
+1.2 讀的是 `v1-2/Mod/`。已記進 `lessons.md`。
+
+### 驗證
+
+```
+$ python smoke.py
+AgentCAD 自我檢查全部通過
+
+模組載入自： D:\Workspace\Personal_Project\AgentCAD\agentcad\__init__.py
+面板檔案：   D:\Workspace\Personal_Project\AgentCAD\agentcad\measure_panel.py
+工具列：     ['尺寸','看全部','等角','前','上','右','開啟','匯出','完整介面']
+
+$ claude mcp get agentcad
+Status: ✔ Connected
+Args: run --script D:/Workspace/Personal_Project/AgentCAD/mcp/server.py
+```
+
+FreeCAD fork 的 `src/Mod/Agent/` 已完全移除，載入來源唯一。

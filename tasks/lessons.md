@@ -52,3 +52,11 @@
 而 `refresh()` 開頭會把 `_whole_target` 重設成 None —— 等於自己把手上的東西清掉了才要用。
 **做法**：任何「先清選取、再重選」的動作，都要先把目標抓進區域變數再呼叫 `clearSelection()`。
 FreeCAD 的 Selection observer 是同步回呼，不要當成事件佇列。
+
+### FreeCAD 的使用者模組目錄是分版本的
+**現象**：addon 放進去，FreeCAD 完全沒反應 —— 工作台沒出現、RPC 沒開、也沒有任何錯誤訊息。
+**原因**：FreeCAD 1.2 讀的是使用者目錄下的 `v1-2/Mod/`，不是 `Mod/`。
+`Mod/` 是舊版路徑，東西放那裡只會安靜地被忽略。
+**做法**：裝 addon 前先在 Python 主控台問 `FreeCAD.getUserAppDataDir()`，
+路徑是 `<那個目錄>/Mod/<AddonName>`。同一台機器可能同時存在 `Mod/`、`v1-1/Mod/`、
+`v1-2/Mod/` 三份，舊版留下的東西要一起清。

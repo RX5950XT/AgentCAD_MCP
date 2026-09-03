@@ -11,19 +11,29 @@
 
 需要 FreeCAD 1.2 或更新的版本（原版即可，不必自己編譯）。
 
-把這個 repo 放進 FreeCAD 的模組目錄，資料夾名稱必須是 `Agent`：
+把這個 repo 放進 FreeCAD 的模組目錄，資料夾名稱必須是 `Agent`。
+
+模組目錄是**分版本**的，別放錯 —— FreeCAD 1.2 用的是 `v1-2/Mod`，
+不是 `FreeCAD/Mod`（那是舊版的，放進去不會被載入）。不確定的話問 FreeCAD 自己：
+選單「檢視 → 面板 → Python 主控台」，貼上 `FreeCAD.getUserAppDataDir()`。
 
 ```powershell
-# Windows
-git clone <repo-url> "$env:APPDATA\FreeCAD\Mod\Agent"
+# Windows（FreeCAD 1.2）
+git clone <repo-url> "$env:APPDATA\FreeCAD\v1-2\Mod\Agent"
 ```
 
 ```bash
-# Linux / macOS
-git clone <repo-url> ~/.local/share/FreeCAD/Mod/Agent
+# Linux / macOS（FreeCAD 1.2）
+git clone <repo-url> ~/.local/share/FreeCAD/v1-2/Mod/Agent
 ```
 
 重開 FreeCAD，工作台選單裡就會出現 AgentCAD，AI 通道自動開在 `127.0.0.1:9875`。
+
+開發時想直接改這個 repo 又不搬檔案，用連結代替 clone：
+
+```powershell
+New-Item -ItemType Junction -Path "$env:APPDATA\FreeCAD\v1-2\Mod\Agent" -Target <repo 路徑>
+```
 
 ## 接上 AI
 

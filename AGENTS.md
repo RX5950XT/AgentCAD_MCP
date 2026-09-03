@@ -24,8 +24,13 @@
 
 ## 開發流程
 
-這個 repo 就是 FreeCAD 的模組目錄本身（clone 到 `%APPDATA%\FreeCAD\Mod\Agent`），
+這個 repo 就是 FreeCAD 的模組目錄本身（junction 掛在 `%APPDATA%\FreeCAD\v1-2\Mod\Agent`），
 所以改完 `.py` 不用複製，但要讓執行中的 FreeCAD 重新載入。
+
+**模組目錄是分版本的**：FreeCAD 1.2 讀 `%APPDATA%\FreeCAD\v1-2\Mod\`，
+不是 `%APPDATA%\FreeCAD\Mod\`（那是舊版路徑，放進去完全不會被載入，
+而且沒有任何錯誤訊息 —— 就只是安靜地沒出現）。不確定就在 Python 主控台問
+`FreeCAD.getUserAppDataDir()`。
 
 ### 改完 Python 不要重開 FreeCAD
 
