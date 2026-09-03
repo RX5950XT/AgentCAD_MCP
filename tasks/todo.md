@@ -266,3 +266,45 @@ Args: run --script D:/Workspace/Personal_Project/AgentCAD/mcp/server.py
 ```
 
 FreeCAD fork 的 `src/Mod/Agent/` 已完全移除，載入來源唯一。
+
+## 第七輪：改名、一鍵安裝、公開發布（2026-09-03）
+
+### 做了什麼
+
+- repo 改名 `AgentCAD` → `AgentCAD_MCP`，junction 重建指向新路徑
+- **新增 `install.py`** —— 「丟 repo 連結給 agent，它自己就裝得好」的核心：
+  自動偵測 FreeCAD 使用者目錄（跨平台，挑版本號最大的 `vX-Y`）、
+  建立連結（Windows junction／其他 symlink／都不行就複製）、註冊 MCP server。
+  另有 `--check`（現況體檢）、`--uninstall`、`--no-mcp`。
+- README 重寫成安裝優先：三行指令裝好，手動安裝收進 `<details>`
+- 補上 LGPL-2.1 `LICENSE` 全文
+- 推上 GitHub 公開
+
+### 差點出事的 bug
+
+`install.py --uninstall` 第一次跑就炸了：`_is_link()` 沒認出 Windows junction，
+掉進 `shutil.rmtree` —— 那會遞迴刪掉 repo 的原始碼本身。
+是 `shutil.rmtree` 自己的「Cannot call rmtree on a symbolic link」擋下來的。
+
+根因：`os.stat()` 會**跟著** junction 走，拿回來的是目標目錄的屬性，
+永遠不帶 `FILE_ATTRIBUTE_REPARSE_POINT`。必須用 `os.lstat()`。
+順手在 `_remove()` 加了保險絲：路徑解析後等於 repo 本身就拒絕遞迴刪除。
+
+### 驗證
+
+```
+$ python install.py --uninstall
+移除 AgentCAD
+  已移除 C:\Users\rx595\AppData\Roaming\FreeCAD\v1-2\Mod\Agent
+  MCP server 'agentcad' 已移除
+（原始碼完好：agentcad/ 下 8 個 .py 都還在）
+
+$ python install.py
+安裝 AgentCAD
+  C:\Users\rx595\AppData\Roaming\FreeCAD\v1-2\Mod\Agent  (junction)
+  MCP server 'agentcad' 已註冊 → D:\Workspace\Personal_Project\AgentCAD_MCP\mcp\server.py
+
+$ python install.py --check
+  [v] FreeCAD 模組目錄：C:\Users\rx595\AppData\Roaming\FreeCAD\v1-2\Mod
+  [v] 已安裝  [v] uv 可用  [v] MCP server 'agentcad' 已註冊
+```

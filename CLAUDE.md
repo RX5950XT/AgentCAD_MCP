@@ -1,4 +1,4 @@
-# AgentCAD 開發規範
+# AgentCAD_MCP 開發規範
 
 把 FreeCAD 變成 AI agent 的 3D 建模引擎。純 Python 的 FreeCAD addon，不需要編譯 FreeCAD。
 
@@ -24,13 +24,19 @@
 
 ## 開發流程
 
-這個 repo 就是 FreeCAD 的模組目錄本身（junction 掛在 `%APPDATA%\FreeCAD\v1-2\Mod\Agent`），
-所以改完 `.py` 不用複製，但要讓執行中的 FreeCAD 重新載入。
+用 `python install.py` 裝好之後，這個 repo 就是 FreeCAD 的模組目錄本身
+（Windows 是 junction，其他平台是 symlink），所以改完 `.py` 不用複製，
+但要讓執行中的 FreeCAD 重新載入。
 
-**模組目錄是分版本的**：FreeCAD 1.2 讀 `%APPDATA%\FreeCAD\v1-2\Mod\`，
-不是 `%APPDATA%\FreeCAD\Mod\`（那是舊版路徑，放進去完全不會被載入，
-而且沒有任何錯誤訊息 —— 就只是安靜地沒出現）。不確定就在 Python 主控台問
+**模組目錄是分版本的**：FreeCAD 1.2 讀 `<使用者目錄>/v1-2/Mod/`，不是 `<使用者目錄>/Mod/`
+（那是舊版路徑，放進去完全不會被載入，而且沒有任何錯誤訊息 —— 就只是安靜地沒出現）。
+`install.py` 會自己挑版本號最大的那個，手動裝的話先在 Python 主控台問
 `FreeCAD.getUserAppDataDir()`。
+
+`install.py` 動到使用者的 FreeCAD 目錄與 `~/.claude.json`，改它的時候特別小心：
+`_remove()` 一旦把 junction 誤判成真目錄就會遞迴刪掉原始碼本身
+（Windows 的 junction `is_symlink()` 是 False，必須用 `os.lstat()` 看 reparse point 旗標 ——
+`os.stat()` 會跟著連結走，永遠拿不到那個旗標）。那裡的保險絲不要拆。
 
 ### 改完 Python 不要重開 FreeCAD
 
@@ -68,7 +74,8 @@ fresh.show()
 改完一定要跑：
 
 ```bash
-python smoke.py          # AI 通道與工具算得對不對
+python install.py --check   # addon 與 MCP 都就位了嗎
+python smoke.py             # AI 通道與工具算得對不對（FreeCAD 要開著）
 ruff check --isolated --select F,E,W,B --ignore E501,E402 .
 ```
 

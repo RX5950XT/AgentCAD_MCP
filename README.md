@@ -1,53 +1,63 @@
-# AgentCAD
+# AgentCAD_MCP
 
-把 FreeCAD 變成 AI agent 的 3D 建模引擎。純 Python，不需要編譯 FreeCAD。
+把 FreeCAD 變成 AI agent 的 3D 建模引擎。純 Python 的 FreeCAD addon，附一個 MCP server。
 
 **只砍人類介面，不砍功能。** 建模能力全部留在 Python API 給 AI 用；收起來的只是
 為手動操作準備的選單、工具列與屬性編輯器。人隨時能按「完整介面」把原本的 FreeCAD 叫回來。
 
 人在 AgentCAD 裡只做兩件事：**看**，和**量**。
 
+---
+
 ## 安裝
 
-需要 FreeCAD 1.2 或更新的版本（原版即可，不必自己編譯）。
+需要 [FreeCAD](https://www.freecad.org/) 1.0 以上（原版即可，不必自己編譯）、
+Python 3.10+、[uv](https://docs.astral.sh/uv/)。
 
-把這個 repo 放進 FreeCAD 的模組目錄，資料夾名稱必須是 `Agent`。
+```bash
+git clone https://github.com/RX5950XT/AgentCAD_MCP.git
+cd AgentCAD_MCP
+python install.py
+```
 
-模組目錄是**分版本**的，別放錯 —— FreeCAD 1.2 用的是 `v1-2/Mod`，
-不是 `FreeCAD/Mod`（那是舊版的，放進去不會被載入）。不確定的話問 FreeCAD 自己：
-選單「檢視 → 面板 → Python 主控台」，貼上 `FreeCAD.getUserAppDataDir()`。
+`install.py` 會自己找到 FreeCAD 的使用者目錄（不必知道是 `v1-2` 還是 `v1-3`）、
+把模組連結進去，並註冊 MCP server。然後重開 FreeCAD 與 Claude Code 就好。
+
+```bash
+python install.py --check      # 檢查裝好了沒
+python install.py --uninstall  # 移除
+python install.py --no-mcp     # 只裝 addon，不碰 MCP 設定
+```
+
+<details>
+<summary>手動安裝</summary>
+
+模組目錄是**分版本**的 —— FreeCAD 1.2 用 `v1-2/Mod`，不是 `FreeCAD/Mod`
+（那是舊版路徑，放進去不會被載入，而且沒有任何錯誤訊息）。
+不確定的話在 FreeCAD 的 Python 主控台問 `FreeCAD.getUserAppDataDir()`。
 
 ```powershell
 # Windows（FreeCAD 1.2）
-git clone <repo-url> "$env:APPDATA\FreeCAD\v1-2\Mod\Agent"
+git clone https://github.com/RX5950XT/AgentCAD_MCP.git "$env:APPDATA\FreeCAD\v1-2\Mod\Agent"
 ```
 
 ```bash
-# Linux / macOS（FreeCAD 1.2）
-git clone <repo-url> ~/.local/share/FreeCAD/v1-2/Mod/Agent
+# Linux（FreeCAD 1.2）
+git clone https://github.com/RX5950XT/AgentCAD_MCP.git ~/.local/share/FreeCAD/v1-2/Mod/Agent
+# macOS
+git clone https://github.com/RX5950XT/AgentCAD_MCP.git ~/Library/Preferences/FreeCAD/v1-2/Mod/Agent
 ```
 
-重開 FreeCAD，工作台選單裡就會出現 AgentCAD，AI 通道自動開在 `127.0.0.1:9875`。
-
-開發時想直接改這個 repo 又不搬檔案，用連結代替 clone：
-
-```powershell
-New-Item -ItemType Junction -Path "$env:APPDATA\FreeCAD\v1-2\Mod\Agent" -Target <repo 路徑>
-```
-
-## 接上 AI
-
-MCP server 是單檔 PEP 723 腳本，`uv` 會自己處理相依，不需要先安裝：
+資料夾名稱必須是 `Agent`。接著註冊 MCP server：
 
 ```bash
-claude mcp add agentcad -s user -- uv run --script <這個 repo>/mcp/server.py
+claude mcp add agentcad -s user -- uv run --script <repo 路徑>/mcp/server.py
 ```
-
-Codex 或其他 MCP 用戶端同理，指向同一個 `mcp/server.py`。
-
-AgentCAD 視窗要開著，而且狀態列右下角的指示燈是綠的（點一下可以開關）。
+</details>
 
 ## 確認能用
+
+FreeCAD 開著，狀態列右下角的指示燈是綠的（點一下可以開關），然後：
 
 ```bash
 python smoke.py
@@ -55,7 +65,28 @@ python smoke.py
 
 輸出 `AgentCAD 自我檢查全部通過` 就沒問題。
 
-## 人怎麼量尺寸
+---
+
+## AI 這一側
+
+MCP server 提供 22 個工具。最常用的幾個：
+
+| 工具 | 做什麼 |
+|---|---|
+| `scene` | 看目前模型全貌：每個物件的長寬高、體積、位置、可調參數與錯誤狀態 |
+| `run_code` | 在 FreeCAD 裡執行 Python，完整 API 權限（Part / PartDesign / Draft / Sketcher / Mesh） |
+| `measure` | 智慧量測：一個目標給最有意義的尺寸，兩個目標給距離與夾角 |
+| `check_geometry` | 幾何健檢 —— 布林運算後一定要跑，「看起來對但其實是兩塊」是最常見的隱形失敗 |
+| `check_interference` | 兩零件是否干涉、重疊多少體積；沒干涉時回報間隙 |
+| `mass_properties` | 體積、表面積、重心；給密度就估重量（PLA 約 1.24 g/cm³） |
+| `screenshot` | 一次抓多個視角，判斷比例遠比單張準 |
+| `export_model` | 匯出 STEP / IGES / BREP / STL / 3MF / OBJ |
+
+`capabilities` 會列出全部工具與說明。
+
+變數會跨次 `run_code` 呼叫保留，可以分段建構模型。
+
+## 人這一側：怎麼量尺寸
 
 | 你做的事 | 面板給你 |
 |---|---|
@@ -73,13 +104,15 @@ python smoke.py
 **兩孔中心距**Ctrl 點兩個孔口圓邊看中心距；**配合間隙**看「間隙 XYZ」而不是最短距離
 （斜線距離對不上組裝方向）。
 
+---
+
 ## 架構
 
 | 層 | 位置 | 說明 |
 |----|------|------|
-| FreeCAD 模組 | `agentcad/` | 工作台、極簡介面、測量面板、RPC 伺服器 |
+| FreeCAD 模組 | `agentcad/` | 工作台、極簡介面、測量面板 |
 | 內建 RPC | `agentcad/rpc.py` | FreeCAD 啟動時自動開在 `127.0.0.1:9875`，相容舊 `freecad-mcp` 用戶端 |
-| MCP server | `mcp/server.py` | 單檔 PEP 723，22 個工具，`uv run --script` 直接跑 |
+| MCP server | `mcp/server.py` | 單檔 PEP 723，`uv run --script` 直接跑，不必安裝 |
 
 人看到的數字與 AI 讀到的數字走同一套 `agentcad/tools.py`，不會各說各話。
 
@@ -90,10 +123,12 @@ python smoke.py
 | 鍵 | 預設 | 說明 |
 |----|------|------|
 | `AutoStart` | `true` | FreeCAD 啟動時自動打開 AI 通道 |
-| `Port` | `9875` | RPC 連接埠（與舊 `freecad-mcp` 相同） |
+| `Port` | `9875` | RPC 連接埠 |
 | `AllowRemote` | `false` | 只收本機連線；打開才聽 `0.0.0.0` |
 | `AllowedIPs` | `127.0.0.1` | `AllowRemote` 為 true 時的白名單（逗號分隔，支援 CIDR） |
 | `MinimalUI` | `true` | 極簡介面 |
+
+RPC 預設只收本機連線。要開遠端請自行評估風險 —— 它允許執行任意 Python。
 
 ## 授權
 
