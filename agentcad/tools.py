@@ -105,7 +105,7 @@ def list_errors(doc_name=None):
     return {
         "document": doc.Name,
         "errors": serialize.digest(doc)["errors"],
-        "touched": [o.Name for o in doc.Objects if o.mustExecute()],
+        "touched": [o.Name for o in doc.Objects if "Touched" in o.State],
     }
 
 

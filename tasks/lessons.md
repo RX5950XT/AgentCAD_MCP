@@ -60,3 +60,18 @@ FreeCAD 的 Selection observer 是同步回呼，不要當成事件佇列。
 **做法**：裝 addon 前先在 Python 主控台問 `FreeCAD.getUserAppDataDir()`，
 路徑是 `<那個目錄>/Mod/<AddonName>`。同一台機器可能同時存在 `Mod/`、`v1-1/Mod/`、
 `v1-2/Mod/` 三份，舊版留下的東西要一起清。
+
+### FreeCAD 1.2 的 Part 基本形狀沒有 mustExecute()
+**現象**：`problems`／`recompute` 一律回錯，`AttributeError: 'PrimitivePy' object has no attribute 'mustExecute'`。
+**原因**：FreeCAD 1.2 把 `Part::Box` 這類基本形狀改成 Python 實作（`PrimitivePy`），
+沒有 C++ DocumentObject 的 `mustExecute()`。文件裡只要有一個基本形狀，整份就掃不完。
+**做法**：判斷待重算改看狀態旗標 `"Touched" in obj.State`，所有物件型別通用。
+FreeCAD 1.2 起別再假設 `DocumentObject` 的 C++ 方法都還在。
+
+### 不要對執行中的 rpc.py 做 importlib.reload
+**現象**：reload 之後 RPC 還通，但 `run_code` 的 `Output:` 永遠空白，
+`scene` 之類的呼叫甚至回傳上一個請求的結果（拿到 `true`）。
+**原因**：reload 重跑模組本體，`_requests`／`_results` 換成全新的 Queue，
+但已排隊的舊結果與舊 QTimer pump 鏈還在，request 與 result 從此錯開一格。
+`_server`／`_thread` 也被重設成 None，`stop()` 就再也關不掉伺服器。
+**做法**：`rpc.py` 改完就重開 FreeCAD，只有 `serialize`／`tools`／面板那幾個模組能熱抽換。
